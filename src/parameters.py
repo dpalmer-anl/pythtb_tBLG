@@ -322,3 +322,151 @@ def chebval(x, c, tensor=True):
             c0 = c[-i] - c1
             c1 = tmp + c1*x2
     return c0 + c1*x
+
+@njit
+def dot(x1,x2):
+    sum=0
+    for i in range(len(x1)):
+        sum += x1[i] * x2[i]
+    return sum
+@njit
+def diag(arr):
+    ndim = len(arr)
+    new_arr = np.zeros((ndim,ndim),dtype=complex128)
+    for i in range(ndim):
+        new_arr[i,i] = arr[i]
+    return arr
+
+@njit
+def wrap_disp(r1,r2, cell):
+    """Wrap positions to unit cell."""
+    RIJ=np.zeros(3)
+    d = 1000
+    drij=np.zeros(3)
+    
+    for i in [-1,0,1]:
+        for j in [-1,0,1]:
+            pbc=[i,j,0]
+            
+            #RIJ = r2 + np.matmul(pbc,cell)  - r1
+            RIJ[0] = r2[0] + pbc[0]*cell[0,0] + pbc[1]*cell[1,0] +\
+                    pbc[2]*cell[2,0] - r1[0]
+            
+            RIJ[1] = r2[1] + pbc[0]*cell[0,1] + pbc[1]*cell[1,1] + \
+                pbc[2]*cell[2,1] - r1[1]
+            
+            RIJ[2] = r2[2] + pbc[0]*cell[0,2] + pbc[1]*cell[1,2] + \
+                pbc[2]*cell[2,2] - r1[2]
+            if np.linalg.norm(RIJ)<d:
+                d = np.linalg.norm(RIJ)
+                drij = RIJ.copy()
+
+    
+    return drij
+
+          
+@njit
+def gen_ham_popov(xyz, cell, layer_tags,use_hoppingInter,use_hoppingIntra,
+            use_overlapInter,use_overlapIntra, rcut_inplane=3.6, rcut_interlayer=5.29,kval=np.array([0,0,0])):
+    """ get pz only tight binding energy spectrum from a given ase.atoms object. Note**
+    to use interlayer hoppings, atoms_obj.symbols must contain differing symbols
+    for atoms in different layers. At least one hopping function must be provided
+    energies in eV
+    
+    atoms_obj (ase.atoms object) atoms object to calculate energy for. can be 
+    from a lammps dump or data file. Or generated using flatgraphene module
+    
+    hoppingIntra,overlapIntra,hoppingInter,overlapInter (function) slater koster function for
+    tight binding parameters. must take in positions of each atom, and kval
+    
+    r_cut_interlayer(float): interlayer cutoff radius
+    
+    r_inplance (float): inplane cutoff radius
+    
+    kval (3x1 array): point in kspace to calculate energy at
+    
+    """
+    periodicR1 = cell[0,:]
+    periodicR2 = cell[1,:]
+    periodicR3 = cell[2,:]
+    V = dot(periodicR1,np.cross(periodicR2,periodicR3))
+    b1 = 2*np.pi*np.cross(periodicR2,periodicR3)/V
+    b2 = 2*np.pi*np.cross(periodicR1,periodicR3)/V
+    b3 = 2*np.pi*np.cross(periodicR1,periodicR2)/V
+    kval = kval[0]*b1 + kval[1]*b2 + kval[2]*b3
+    natoms = np.shape(xyz)[0]
+    Es_C =  -13.7388 # eV 
+    Ep_C = -5.2887  # eV
+    EnergiesOfCarbon = [Es_C, Ep_C, Ep_C, Ep_C]
+    if use_hoppingIntra:
+        test_val = hoppingIntra(np.array([3.,3.,3.]),np.array([0,0,0]))
+    elif use_hoppingInter:
+        test_val = hoppingInter(np.array([3.,3.,3.]),np.array([0,0,0]))
+    else:
+        print("add hopping function")
+    orbs_per_atom= test_val.shape[0]
+    #add in code to take care of multiple orbitals at same atom
+    Hmatrix = np.array([np.complex128(x) for x in range(0)],dtype=complex128)
+    H_row = np.array([np.int64(x) for x in range(0)],dtype=int64)
+    H_col = np.array([np.int64(x) for x in range(0)],dtype=int64)
+    Smatrix = np.array([np.complex128(x) for x in range(0)],dtype=complex128)
+    S_row = np.array([np.int64(x) for x in range(0)],dtype=int64)
+    S_col = np.array([np.int64(x) for x in range(0)],dtype=int64)
+    for i in range (0,natoms, 1): #%going to each atom one by one
+        ri = xyz[i,:]
+        curr_tag=layer_tags[i]
+        for j in range (i, natoms, 1): 
+            rj = xyz[j,:]
+            if i == j: #insert self energies on diagonal
+                Hmatrix = np.append(Hmatrix,Ep_C)
+                
+                H_row = np.append(H_row,i)
+                H_col = np.append(H_col,j)
+                
+                if use_overlapInter or use_overlapIntra:
+                    Smatrix= np.append(Smatrix,1)
+                    S_row= np.append(S_row,i)
+                    S_col = np.append(S_col,j)
+                continue
+            disp = wrap_disp(ri,rj,cell)
+            dist = np.linalg.norm(disp)
+            #INPLANE INTERACTION,USING R_CUT TO CHOOSE NEIGHBOR
+            if curr_tag == layer_tags[j] and use_hoppingIntra: #or insert tolerance
+                if (dist)<rcut_inplane:
+                    hopMat = hoppingIntra(disp,kval)
+                    Hmatrix = np.append(Hmatrix,hopMat)
+                    H_row = np.append(H_row,i)
+                    H_col = np.append(H_col,j)
+                    Hmatrix = np.append(Hmatrix,hopMat.conj().T)
+                    H_row= np.append(H_row,j)
+                    H_col = np.append(H_col,i)
+                    if use_overlapIntra:
+                        overMat = overlapIntra(disp,kval)
+                        Smatrix = np.append(Smatrix,overMat)
+                        S_row = np.append(S_row,i)
+                        S_col = np.append(S_col,j)
+                        Smatrix = np.append(Smatrix,overMat.conj().T)
+                        S_row = np.append(S_row,j)
+                        S_col = np.append(S_col,i)
+            #INTERLAYER INTERACTION, NOT APPLYING R_CUT, RIGIDLY CHOOSING NEIGHBOR       
+            elif use_hoppingInter:
+                
+                if dist < rcut_interlayer:
+                     
+                    hopMat = hoppingInter(disp,kval)
+                    Hmatrix = np.append(Hmatrix,hopMat)
+                    H_row = np.append(H_row,i)
+                    H_col = np.append(H_col,j)
+                    Hmatrix = np.append(Hmatrix,hopMat.conj().T)
+                    H_row= np.append(H_row,j)
+                    H_col = np.append(H_col,i)
+                    if use_overlapIntra:
+                        overMat = overlapIntra(disp,kval)
+                        Smatrix = np.append(Smatrix,overMat)
+                        S_row = np.append(S_row,i)
+                        S_col = np.append(S_col,j)
+                        Smatrix = np.append(Smatrix,overMat.conj().T)
+                        S_row = np.append(S_row,j)
+                        S_col = np.append(S_col,i)
+
+    return Hmatrix,H_row,H_col,Smatrix,S_row,S_col

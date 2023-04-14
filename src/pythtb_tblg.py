@@ -28,6 +28,10 @@ import copy # for deepcopying
 import solverUtils
 import os
 from scipy.optimize import linear_sum_assignment
+import h5py
+import glob
+import re
+import ase
 
 class tblg_model(object):
     r"""
@@ -108,10 +112,19 @@ class tblg_model(object):
         if nspin not in [1,2]:
             raise Exception("\n\nWrong value of nspin, must be 1 or 2!")
         self._nspin=nspin
-
+        self.eigenvalues = None
+        self.eigenvectors = None
+        self.read_data = False
         # by default, assume model did not come from w90 object and that
         # position operator is diagonal
         self._assume_position_operator_diagonal=True
+        self.solve_dict = {'cupy':False,
+                    'sparse':False,
+                    'writeout':None,
+                    'restart':False,
+                    #if sparse:
+                    "fermi energy":-4.51,
+                    "num states":30}
 
     def _val_to_block(self,val):
         """If nspin=2 then returns a 2 by 2 matrix from the input
@@ -157,23 +170,58 @@ Wrong format of the on-site or hopping term. Must be single number, or
 in the case of a spinfull model can be array of four numbers or 2x2
 matrix.""")            
             return ret        
-    
+    def save_model(self,dir_name):
+        np.savez(dir_name,
+                 #atoms=self.atoms, #fix this line
+                 positions=self.atoms.positions,
+                 cell=self.atoms.get_cell(),
+                 layer_tags=list(self.atoms.symbols),
+                 parameters=self.parameters,
+                 solve_dict=self.solver_dict)
+        
+        
     def set_solver(self,solve_dict):
+        for k in solve_dict.keys():    
+            self.solve_dict[k] = solve_dict[k]
+        self.solver = solverUtils.solver(self)
         return None
         
     def get_num_orbitals(self):
         "Returns number of orbitals in the model."
         return self.atoms.get_global_number_of_atoms()
+    
+    def get_eigenvalues(self,k_list='all'):
+        if type(self.eigenvalues)==np.ndarray:
+            return self.eigenvalues
+        if self.read_data:
+            if k_list=='all':
+                k_list = self.kpoints.copy()
+            evals,evec,kpoints = load_dataHDF5(self.solve_dict['writeout'],k_list)
+            self.eigenvalues = evals
+            self.eigenvectors = evec
+            self.read_data = False
+            return self.eigenvalues
+        
+    def get_eigenvectors(self,k_list='all'):
+        if type(self.eigenvectors)==np.ndarray:
+            return self.eigenvectors
+        
+        if self.read_data:
+            if k_list!='all':
+                evals,evec,kpoints = load_dataHDF5(self.solve_dict['writeout'],k_list=k_list)
+            else:
+                evals,evec,kpoints = load_dataHDF5(self.solve_dict['writeout'])
+            self.eigenvalues = evals
+            self.eigenvectors = evec
+            self.kpoints = kpoints
+            self.read_data = False
+            return self.eigenvectors
+                
 
     def solve_all(self,k_list=None):
-        
-        ret_eval, ret_evec = self.solver.get_bands(self.atoms,k_list)
+        self.kpoints = k_list.copy()
+        self.solver.solve_all(k_list)
         # indices of eval are [band,kpoint] for evec are [orbital,band,kpoint,(spin)]
-        
-        #change output to be [band,kpoint,orbital,(spin)]
-        ret_evec = ret_evec.T
-        self.eigenvectors = ret_evec
-        self.eigenvalues = ret_eval
 
     def solve_one(self,k_point=None):
         r"""
@@ -1750,9 +1798,62 @@ def _red_to_cart(tmp,red):
 def _is_int(a):
     return np.issubdtype(type(a), np.integer)
 
+def check_arr(slice,array):
+    tol = 1e-4
+    v = np.linalg.norm(np.tile(slice,(np.shape(array)[0],1))-array,axis=1)
+    if np.min(v) < tol:
+        return True
+    else:
+        return False
+    
+def closest_index(space1,slice_val):
+    k_ind=0
+    min_dist = 1e6
+    for i in range(np.shape(space1)[0]):
+        dist = np.linalg.norm(space1[i,:]-slice_val)
+        if dist < min_dist:
+            k_ind=i
+            min_dist=dist
+
+    return k_ind
+
+def load_dataHDF5(dir_name,k_list):
+    files = glob.glob(os.path.join(dir_name,"*.hdf5"))
+    evals=[]
+    evec=[]
+    kpoints=np.empty_like(k_list)
+    indices=[]
+    i=0
+    for fname in files:
+        f = h5py.File(fname, 'r')
+        keys = f.keys()
+        for k in keys:
+            # kp = fname.split("/")[-1].split("_")[1].split(".hdf5")[0]
+            # kp = re.findall(r"[-+]?\d*\.\d+|\d+", kp)
+            # kp = [float(s) for s in kp] 
+            g = f[k]
+            kp = g['kpoint'][:]
+            # if type(k_list)==np.ndarray:
+            #     if check_arr(kp,k_list):
+            #         continue
+            index = closest_index(k_list,kp)
+            kpoints[index,:]=kp
+            tmp_evals = g['eigvals'][:]
+            tmp_evec = g['eigvecs'][:]
+            if i ==0:
+                evals = np.empty((np.shape(tmp_evals)[0],np.shape(k_list)[0]))
+                evec = np.empty((np.shape(tmp_evec)[0],np.shape(tmp_evec)[1],np.shape(k_list)[0]),dtype=complex)
+            evals[:,index] = tmp_evals
+            evec[:,:,index] = tmp_evec
+            
+            i+=1
+
+    return evals,evec,kpoints
+
 def _offdiag_approximation_warning_and_stop():
     raise Exception("""
 
+                    
 ----------------------------------------------------------------------
 
   It looks like you are trying to calculate Berry-like object that
@@ -1773,3 +1874,16 @@ def _offdiag_approximation_warning_and_stop():
 ----------------------------------------------------------------------
 
 """)
+
+def load_model(dir_name):
+    data = np.load(dir_name) 
+    #atoms=self.atoms, #fix this line
+    positions=data['positions']
+    cell=data['cell']
+    symbols=data['layer_tags']
+    atoms = ase.atoms(positions=positions,cell=cell,symbols=symbols)
+    parameters=data['parameters']
+    solve_dict=data['solver_dict']
+    model = tblg_model(atoms,parameters=parameters)
+    model.read_data = True
+    return model
