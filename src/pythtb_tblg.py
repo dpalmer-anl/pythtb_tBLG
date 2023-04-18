@@ -171,13 +171,12 @@ in the case of a spinfull model can be array of four numbers or 2x2
 matrix.""")            
             return ret        
     def save_model(self,dir_name):
-        np.savez(dir_name,
-                 #atoms=self.atoms, #fix this line
-                 positions=self.atoms.positions,
-                 cell=self.atoms.get_cell(),
-                 layer_tags=list(self.atoms.symbols),
-                 parameters=self.parameters,
-                 solve_dict=self.solver_dict)
+        data= {'positions':self.atoms.positions,
+                 'cell':self.atoms.get_cell(),
+                 'layer_tags':list(self.atoms.symbols),
+                 'parameters':self.parameters,
+                 'solve_dict':self.solve_dict}
+        np.save(dir_name,data)
         
         
     def set_solver(self,solve_dict):
@@ -194,8 +193,9 @@ matrix.""")
         if type(self.eigenvalues)==np.ndarray:
             return self.eigenvalues
         if self.read_data:
-            if k_list=='all':
-                k_list = self.kpoints.copy()
+            if type(k_list)==str:
+                if k_list=='all':
+                    k_list = self.kpoints.copy()
             evals,evec,kpoints = load_dataHDF5(self.solve_dict['writeout'],k_list)
             self.eigenvalues = evals
             self.eigenvectors = evec
@@ -758,9 +758,15 @@ class wf_array(object):
     """
     def __init__(self,model,mesh_arr,nsta_arr=None):
         # number of electronic states for each k-point
+        norb = model.atoms.get_global_number_of_atoms() 
+        self.norbs = norb
+        if not model.solve_dict['sparse']:
+            num_eigvals = norb
+        else:
+            num_eigvals = model.solve_dict["num states"]
         if nsta_arr is None:
-            self._nsta_arr=model._nsta  # this = norb*nspin = no. of bands
-            
+            self._nsta_arr=num_eigvals  # this = norb*nspin = no. of bands
+            model._nsta = num_eigvals
             # note: 'None' means to use the default, which is all bands!
         else:
             if not _is_int(nsta_arr):
@@ -773,7 +779,7 @@ class wf_array(object):
         # store orbitals from the model
         self._orb=np.copy(model._orb)
         # store entire model as well
-        self._model=copy.deepcopy(model)
+        self._model=model #copy.deepcopy(model)
         # store dimension of array of points on which to keep wavefunctions
         self._mesh_arr=np.array(mesh_arr)        
         self._dim_arr=len(self._mesh_arr)
@@ -791,8 +797,7 @@ class wf_array(object):
 
 
         
-    def solve_on_grid(self,start_k,scale=1.0,use_cupy=False,sparse=True,
-                  output_name=None,eig_vectors=True):
+    def solve_on_grid(self,start_k,scale=1.0):
         r"""
 
         Solve a tight-binding model on a regular mesh of k-points covering
@@ -818,21 +823,9 @@ class wf_array(object):
           wf.solve_on_grid([-0.5, -0.5])
 
         """
-        
-        load_data=False
-        if output_name!=None:
-            if os.path.exists(output_name+".npz"):
-                load_data = True
-                data = np.load(output_name+".npz")
-                eval = data["eval"]
-                evec = data["evec"]
-                k_list = data['k_list']
-                kpoint_berry = data['kpoint_berry']
-                scale = data['scale']
-                start_k = data['start_k']
-                
-                
+
         # check dimensionality
+
         if self._dim_arr!=self._model._dim_k:
             raise Exception(\
                 "\n\nIf using solve_on_grid method, dimension of wf_array must equal"\
@@ -856,43 +849,34 @@ class wf_array(object):
             gap_dim=np.copy(self._mesh_arr)-1
             gap_dim=np.append(gap_dim,self._nsta_arr-1)
             all_gaps=np.zeros(gap_dim,dtype=float)
-        
-        if not load_data:
-            k_list = np.zeros((np.prod(self._mesh_arr),3))
-            dim = np.append(self._mesh_arr,3)
-            kpoint_berry = np.zeros(dim)
-            n=0
-            for i in range(self._mesh_arr[0]):
-                for j in range(self._mesh_arr[1]):
-                    for k in range(self._mesh_arr[2]):
-                        kpt=scale*(np.array([start_k[0]+float(i)/float(self._mesh_arr[0]),\
-                             start_k[1]+float(j)/float(self._mesh_arr[1]),\
-                             start_k[2]+float(k)/float(self._mesh_arr[2])]))
-                        kpoint_berry[i,j,k] = kpt
-                        k_list[n,:] = kpt
-                        n+=1
-            #parallelizes over kpoints  
-            print("running band calcs")
-            (eval,evec)=self._model.solve_all(k_list,use_cupy=use_cupy,sparse=sparse,\
-                                              output_name=None,eig_vectors=True)
-            if output_name!=None:
-                np.savez(output_name,eval=eval,evec=evec,
-                         k_list=k_list,kpoint_berry=kpoint_berry,scale=scale,
-                         start_k=start_k)
 
+        k_list = np.zeros((np.prod(self._mesh_arr),3))
+        dim = np.append(self._mesh_arr,3)
+        kpoint_berry = np.zeros(dim)
+        n=0
+        for i in range(self._mesh_arr[0]):
+            for j in range(self._mesh_arr[1]):
+                for k in range(self._mesh_arr[2]):
+                    kpt=scale*(np.array([start_k[0]+float(i)/float(self._mesh_arr[0]),\
+                         start_k[1]+float(j)/float(self._mesh_arr[1]),\
+                         start_k[2]+float(k)/float(self._mesh_arr[2])]))
+                    kpoint_berry[i,j,k,:] = kpt
+                    k_list[n,:] = kpt
+                    n+=1
+        #parallelizes over kpoints  
+        self._model.solve_all(k_list)
+        eval = self._model.get_eigenvalues(k_list)
+        evec = self._model.get_eigenvectors(k_list).T
         for i in range(np.shape(kpoint_berry)[0]):
             for j in range(np.shape(kpoint_berry)[1]):
                 for k in range(np.shape(kpoint_berry)[2]):
                     tmpk = kpoint_berry[i,j,k,:]
-                    k_ind = closest_index(tmpk,k_list)
+                    k_ind = closest_index(k_list,tmpk)
                     self[i,j,k]=evec[k_ind,:,:]
-                    self._evals[i,k,k] = eval[:,k_ind]        
+                    self._evals[i,j,k] = eval[:,k_ind]        
         #need to make sure this work
         for dir in range(3):
             self.impose_pbc(dir,self._model._per[dir])
-        if sparse:
-            #sort periodic wavefunctions so that bands align
-            self.sort_bands()
 
         
     def solve_on_one_point(self,kpt,mesh_indices,use_cupy=False,sparse=True,
@@ -923,12 +907,13 @@ class wf_array(object):
               wf.solve_on_one_point([kx,ky,kz],[i,j])
 
         """
-        (eval,evec)=self._model.solve_one(kpt,use_cupy=use_cupy,sparse=sparse,
-                  output_name=output_name,eig_vectors=True) 
+        self._model.solve_one(kpt) 
+        eval = self._model.get_eigenvalues()
+        evec = self._model.get_eigenvectors().T
         if _is_int(mesh_indices):
-          self._wfs[(mesh_indices,)]=evec
+          self._wfs[(mesh_indices,)]=np.squeeze(evec)
         else:
-          self._wfs[tuple(mesh_indices)]=evec
+          self._wfs[tuple(mesh_indices)]=np.squeeze(evec)
 
     def choose_states(self,subset):
         r"""
@@ -1568,23 +1553,6 @@ class wf_array(object):
 
         else:
             raise Exception("\n\nWrong dimensionality!")
-            
-    def sort_bands(self):
-        #all eigvals, corresponding eigvects in parameter space (k, relaxation)
-    
-        e, psi = self._evals[0,0,0,:],self._wfs[0,0,0,:,:].T 
-        
-        for i in range(self._mesh_arr[0]):
-            for j in range(self._mesh_arr[1]):
-                for k in range(self._mesh_arr[2]):
-                    
-                    e2, psi2 = self._evals[i,j,k],self._wfs[i,j,k].T #[orbs,bands]
-                    perm, line_breaks = best_match(psi, psi2)
-                    e2 = e2[perm]
-                    psi = psi2[:, perm]
-                    e = e2
-                    self._evals[i,j,k] = e
-                    self._wfs[i,j,k] = psi.T
 
 #=======================================================================
 # Begin internal definitions
@@ -1598,18 +1566,6 @@ def best_match(psi1, psi2,threshold=0.1):
     orig, perm = linear_sum_assignment(-Q)
     #print(Q[orig, perm] )
     return perm, Q[orig, perm] < threshold
-
-def closest_index(slice_val,space1):
-    k_ind=0
-    min_dist = 1e6
-    for i in range(np.shape(space1)[0]):
-        dist = np.linalg.norm(space1[i,:]-slice_val)
-        if dist < min_dist:
-            k_ind=i
-            min_dist=dist
-
-    return k_ind
-
     
 def _nicefy_eig(eval,eig=None):
     "Sort eigenvaules and eigenvectors, if given, and convert to real numbers"
@@ -1876,14 +1832,14 @@ def _offdiag_approximation_warning_and_stop():
 """)
 
 def load_model(dir_name):
-    data = np.load(dir_name) 
-    #atoms=self.atoms, #fix this line
-    positions=data['positions']
-    cell=data['cell']
-    symbols=data['layer_tags']
-    atoms = ase.atoms(positions=positions,cell=cell,symbols=symbols)
-    parameters=data['parameters']
-    solve_dict=data['solver_dict']
+    data = np.load(dir_name,allow_pickle=True) 
+    positions=data.item().get('positions')
+    cell=data.item().get('cell')
+    symbols=data.item().get('layer_tags')
+    atoms = ase.Atoms(positions=positions,cell=cell,symbols=symbols)
+    parameters=data.item().get('parameters')
+    solve_dict=data.item().get('solve_dict')
     model = tblg_model(atoms,parameters=parameters)
     model.read_data = True
+    model.set_solver(solve_dict)
     return model

@@ -391,7 +391,7 @@ def gen_ham_popov(xyz, cell, layer_tags,use_hoppingInter,use_hoppingIntra,
     periodicR3 = cell[2,:]
     V = dot(periodicR1,np.cross(periodicR2,periodicR3))
     b1 = 2*np.pi*np.cross(periodicR2,periodicR3)/V
-    b2 = 2*np.pi*np.cross(periodicR1,periodicR3)/V
+    b2 = 2*np.pi*np.cross(periodicR3,periodicR1)/V
     b3 = 2*np.pi*np.cross(periodicR1,periodicR2)/V
     kval = kval[0]*b1 + kval[1]*b2 + kval[2]*b3
     natoms = np.shape(xyz)[0]

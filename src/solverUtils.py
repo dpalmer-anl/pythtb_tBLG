@@ -51,6 +51,7 @@ class solver(object):
                 #find k eigenvalues around fermi level
                 ham  = ham.toarray()
                 eval,eigvec = np.linalg.eigh(ham) #,b=overlap)
+            eval,eigvec = _nicefy_eig(eval,eigvec)
             del ham
             del overlap
             
@@ -72,6 +73,7 @@ class solver(object):
             else:
                
                eval,eigvec = spspla.eigsh(ham,k=k,which='LM',sigma=efermi)
+            eval,eigvec = _nicefy_eig(eval,eigvec)
             del ham
             del overlap
             return eval,eigvec
@@ -105,12 +107,10 @@ class solver(object):
                 overlap =  csr_matrix((Smatrix,(S_row,S_col)),shape=(self.norbs,self.norbs))
                 # solve Hamiltonian
                 eval, evec = self.sol_ham(ham,overlap,dev_num)
+
                 if type(self._model.solve_dict['writeout']) == str:
                     fobj = os.path.join(self._model.solve_dict['writeout'],'kp_'+str(kval)+".hdf5")
-                    
-                    # if os.path.exists(fobj):
-                    #     #subprocess.call("rm -f \'"+fobj,shell=True)
-                    #     os.remove(fobj)
+
                     with h5py.File(fobj, 'w') as f:
                         group = f.create_group(str(kval))
                         dset3 = group.create_dataset('kpoint',data=kval)
@@ -123,13 +123,15 @@ class solver(object):
                     return (eval,evec)
         return func_to_return
     
-    
     def solve_all(self,k_list):
         orbs_per_atom= 1 
         norb = self._model.atoms.get_global_number_of_atoms() * orbs_per_atom
         self.norbs = norb
         if not self._model.solve_dict['sparse']:
             num_eigvals = norb
+        else:
+            num_eigvals = self._model.solve_dict["num states"]
+        self._model.num_eigvals = num_eigvals
         
         if self._model.solve_dict['writeout']!=None:
             if self._model.solve_dict['restart']:
@@ -139,6 +141,7 @@ class solver(object):
                     kcalc = np.loadtxt(os.path.join(self._model.solve_dict['writeout'],'kpoints.calc'))
                     use = slices_inarray(k_list,kcalc,axis=0,invert=True)
                     k_list = k_list[use,:]
+                    
                     if np.shape(k_list)[0] == 0:
                         self._model.read_data=True
                         return None
@@ -157,7 +160,6 @@ class solver(object):
             ret_eval = np.zeros((num_eigvals,nkp))
             #    indices are [orbital,band,kpoint,spin]
             eigvect = np.zeros((norb,num_eigvals,nkp),dtype=complex)
-
             #change return to read hdf5 files instead
             if not self._model.solve_dict['cupy']:
                 number_of_cpu = joblib.cpu_count()
@@ -167,7 +169,7 @@ class solver(object):
                     eigvect[:,:,i] = output[i][1]
             else:
                 #try to parallelize this loop
-                ngpu = 6
+                ngpu = self._model.solve_dict['cupy']
                 part = nkp//(ngpu)
                 kind = range(nkp)
                 use_ind = np.split(kind,ngpu)
@@ -195,7 +197,7 @@ class solver(object):
                 for i in range(ngpu):
                     band_func(use_ind[i],dev_num=i)
                 
-    
+
 def slices_inarray(check_array,test_array,axis=0,invert=False):
     #axis to iterate over
     nk = np.shape(check_array)[0]
@@ -208,7 +210,17 @@ def slices_inarray(check_array,test_array,axis=0,invert=False):
     if invert:
         isin =  [not elem for elem in isin]
     return isin
-    
+
+def _nicefy_eig(eval,eig):
+    "Sort eigenvaules and eigenvectors, if given, and convert to real numbers"
+    # first take only real parts of the eigenvalues
+    eval=eval.real
+    # sort energies
+    args=eval.argsort()
+    eval=eval[args]
+    eig=eig[:,args]
+    return (eval,eig)
+
 def ase_arrays(atoms_obj):
     xyz= atoms_obj.positions
     layer_tags=list(atoms_obj.symbols)
@@ -216,5 +228,3 @@ def ase_arrays(atoms_obj):
     cell=atoms_obj.get_cell()
         
     return np.array(xyz,dtype=np.double),np.array(cell,dtype=np.double),np.array(layer_tags,dtype=np.str_)
-
-    
