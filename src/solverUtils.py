@@ -99,6 +99,9 @@ class solver(object):
         def func_to_return(indices,dev_num=1):
             if type(indices)==int:
                 indices = [indices]
+            nkp = np.shape(k_list)[0]
+            eval = np.zeros((self._model.num_eigvals,nkp))
+            evec = np.zeros((self.norbs,self._model.num_eigvals,nkp),dtype=complex) 
             for ind in indices:
                 kval = k_list[ind,:]
                 Hmatrix,H_row,H_col,Smatrix,S_row,S_col = self.gen_ham(kval)
@@ -106,7 +109,9 @@ class solver(object):
                 ham =  csr_matrix((Hmatrix,(H_row,H_col)),shape=(self.norbs,self.norbs))
                 overlap =  csr_matrix((Smatrix,(S_row,S_col)),shape=(self.norbs,self.norbs))
                 # solve Hamiltonian
-                eval, evec = self.sol_ham(ham,overlap,dev_num)
+                tmpeval, tmpevec = self.sol_ham(ham,overlap,dev_num)
+                eval[:,ind] = tmpeval
+                evec[:,:,ind] = tmpevec
 
                 if type(self._model.solve_dict['writeout']) == str:
                     fobj = os.path.join(self._model.solve_dict['writeout'],'kp_'+str(kval)+".hdf5")
@@ -114,13 +119,13 @@ class solver(object):
                     with h5py.File(fobj, 'w') as f:
                         group = f.create_group(str(kval))
                         dset3 = group.create_dataset('kpoint',data=kval)
-                        dset1 = group.create_dataset('eigvals', data=eval)
-                        dset2 = group.create_dataset('eigvecs', data=evec)
+                        dset1 = group.create_dataset('eigvals', data=tmpeval)
+                        dset2 = group.create_dataset('eigvecs', data=tmpevec)
                     subprocess.call('echo '+str(kval).replace(']','').replace('[','')
                                     +" >> "+os.path.join(self._model.solve_dict['writeout'],'kpoints.calc')
                                     ,shell=True)
                 else:
-                    return (eval,evec)
+                    return (np.squeeze(eval),np.squeeze(evec))
         return func_to_return
     
     def solve_all(self,k_list):
@@ -171,7 +176,7 @@ class solver(object):
                 #try to parallelize this loop
                 ngpu = self._model.solve_dict['cupy']
                 part = nkp//(ngpu)
-                kind = range(nkp)
+                kind = np.array(range(nkp))
                 use_ind = np.split(kind,ngpu)
                 for i in range(ngpu):
                     tmp_evals,tmp_evec = band_func(use_ind[i],dev_num=i)
@@ -190,10 +195,10 @@ class solver(object):
 
             else:
                 #try to parallelize this loop
-                ngpu = 6
+                ngpu = self._model.solve_dict['cupy']
                 part = nkp//(ngpu)
                 kind = range(nkp)
-                use_ind = np.split(kind,ngpu)
+                use_ind = np.split(np.array(kind),ngpu)
                 for i in range(ngpu):
                     band_func(use_ind[i],dev_num=i)
                 

@@ -16,7 +16,7 @@ if __name__ =="__main__":
     berry_phase=False
 
     lattice_constant = 2.4545
-    twist = 16.43
+    twist = 2.88
      
     #create geometry
     p_found, q_found, theta_comp = fg.twist.find_p_q(twist)
@@ -93,7 +93,7 @@ if __name__ =="__main__":
     if hpc_test:
         model.set_solver( {'cupy':True,
                         'sparse':False,
-                        #'writeout':'test_BandCalc',
+                        'writeout':'test_BandCalc',
                         'restart':False,
                         'ngpu':6,
                         #if sparse
