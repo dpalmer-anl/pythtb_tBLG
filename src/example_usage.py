@@ -186,6 +186,9 @@ if __name__ =="__main__":
         print("  for band 1 equals    : ", w_circ.berry_phase([fermi_ind+1,fermi_ind+2],0))
         print("  for both bands equals: ", w_circ.berry_phase([fermi_ind-1,
                                         fermi_ind,fermi_ind+1,fermi_ind+2],0))
+
+        
+        
         
         
     

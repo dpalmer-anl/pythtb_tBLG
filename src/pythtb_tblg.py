@@ -878,6 +878,12 @@ class wf_array(object):
         for dir in range(3):
             self.impose_pbc(dir,self._model._per[dir])
 
+    def solve_on_path(self,k_list):
+        self._model.solve_all(k_list)
+        evec = self._model.get_eigenvectors
+        for i in range(np.shape(k_list)[0]):
+            k_ind = closest_index(k_list,k_list[i,:])
+            self[i]=evec[k_ind,:,:]
         
     def solve_on_one_point(self,kpt,mesh_indices,use_cupy=False,sparse=True,
                   output_name=None,eig_vectors=True):
