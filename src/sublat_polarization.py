@@ -84,7 +84,7 @@ def sublat_polarization(model):
 if __name__=="__main__":
       
     lattice_constant = 2.4545
-    twist = 2.88
+    twist = 16.43
      
     #create geometry
     p_found, q_found, theta_comp = fg.twist.find_p_q(twist)
@@ -95,5 +95,13 @@ if __name__=="__main__":
     #example usage
     #parameters = [popov,letb,nam koshino], only popov available now
     model = pythtb_tblg.tblg_model(atoms,parameters='popov')
+    model.set_solver( {'cupy':False,
+                        'sparse':False,
+                        #'writeout':'test_BandCalc',
+                        'restart':False,
+                        #'ngpu':6,
+                        #if sparse
+                        "fermi energy":-4.51,
+                        "num states":30})
     Pa1,Pa2,Pb1,Pb2 = sublat_polarization(model)
     print(Pa1,Pa2,Pb1,Pb2)

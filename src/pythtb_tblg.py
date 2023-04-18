@@ -1216,7 +1216,7 @@ class wf_array(object):
         evec=self._wfs[tuple(key)][occ]
         return self._model.position_hwf(evec,dir,hwf_evec,basis)
 
-    def berry_phase(self,occ="All",dir=None,contin=True,berry_evals=False):
+    def berry_phase(self,occ="All",dir=None,contin=True,berry_evals=False,subset=None):
         r"""
 
         Computes the Berry phase along a given array direction
@@ -1310,7 +1310,8 @@ class wf_array(object):
         :ref:`cone-example`, :ref:`3site_cycle-example`,
 
         """
-
+        if type(subset)!=np.ndarray:
+            subset = np.array(range(self._model.norbs)) #use all orbitals
         # special case requesting all states in the array
         if (type(occ) is str and occ == 'All') or occ is None:
             # note that 'None' means 'not specified', not 'no states'
@@ -1334,7 +1335,7 @@ class wf_array(object):
         # 1D case
         if self._dim_arr==1:
             # pick which wavefunctions to use
-            wf_use=self._wfs[:,occ,:]
+            wf_use=self._wfs[:,occ,subset]
             # calculate berry phase
             ret=_one_berry_loop(wf_use,berry_evals)
         # 2D case
@@ -1343,12 +1344,12 @@ class wf_array(object):
             if dir==0:
                 ret=[]
                 for i in range(self._mesh_arr[1]):
-                    wf_use=self._wfs[:,i,:,:][:,occ,:]
+                    wf_use=self._wfs[:,i,:,:][:,occ,subset]
                     ret.append(_one_berry_loop(wf_use,berry_evals))
             elif dir==1:
                 ret=[]
                 for i in range(self._mesh_arr[0]):
-                    wf_use=self._wfs[i,:,:,:][:,occ,:]
+                    wf_use=self._wfs[i,:,:,:][:,occ,subset]
                     ret.append(_one_berry_loop(wf_use,berry_evals))
             else:
                 raise Exception("\n\nWrong direction for Berry phase calculation!")
@@ -1360,7 +1361,7 @@ class wf_array(object):
                 for i in range(self._mesh_arr[1]):
                     ret_t=[]
                     for j in range(self._mesh_arr[2]):
-                        wf_use=self._wfs[:,i,j,:,:][:,occ,:]
+                        wf_use=self._wfs[:,i,j,:,:][:,occ,subset]
                         ret_t.append(_one_berry_loop(wf_use,berry_evals))
                     ret.append(ret_t)
             elif dir==1:
@@ -1368,7 +1369,7 @@ class wf_array(object):
                 for i in range(self._mesh_arr[0]):
                     ret_t=[]
                     for j in range(self._mesh_arr[2]):
-                        wf_use=self._wfs[i,:,j,:,:][:,occ,:]
+                        wf_use=self._wfs[i,:,j,:,:][:,occ,subset]
                         ret_t.append(_one_berry_loop(wf_use,berry_evals))
                     ret.append(ret_t)
             elif dir==2:
@@ -1376,7 +1377,7 @@ class wf_array(object):
                 for i in range(self._mesh_arr[0]):
                     ret_t=[]
                     for j in range(self._mesh_arr[1]):
-                        wf_use=self._wfs[i,j,:,:,:][:,occ,:]
+                        wf_use=self._wfs[i,j,:,:,:][:,occ,subset]
                         ret_t.append(_one_berry_loop(wf_use,berry_evals))
                     ret.append(ret_t)
             else:
