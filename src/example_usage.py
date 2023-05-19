@@ -32,7 +32,7 @@ if __name__ =="__main__":
     Kprime = [1/3,2/3,0]
     M = [1/2,0,0]
     sym_pts=[K,Gamma,M,Kprime]
-    nk=40
+    nk=100
     (k_vec,k_dist,k_node) = model.k_path(sym_pts,nk)
     if test:
         model.set_solver( {'cupy':False,
@@ -91,9 +91,9 @@ if __name__ =="__main__":
         model.solve_all(k_vec)
     
     if hpc_test:
-        model.set_solver( {'cupy':True,
+        model.set_solver( {'cupy':False,
                         'sparse':False,
-                        'writeout':'test_BandCalc',
+                        #'writeout':'test_BandCalc',
                         'restart':False,
                         'ngpu':6,
                         #if sparse

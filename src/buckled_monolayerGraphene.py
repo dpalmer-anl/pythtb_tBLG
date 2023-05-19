@@ -10,7 +10,7 @@ import numpy as np
 import ase.io
 import matplotlib.pyplot as plt
 
-def plot_bands(*all_evals,colors,labels,title='',figname=None):
+def plot_bands(colors,labels,all_evals,title='',figname=None):
     fig, ax = plt.subplots()
     label=(r'$K$', r'$M$', r'$\Gamma $',r'$K$')
     # specify horizontal axis details
@@ -27,7 +27,8 @@ def plot_bands(*all_evals,colors,labels,title='',figname=None):
     ax.set_xlabel("Path in k-space")
     ax.set_ylabel("Band energy")
     
-    for i,evals in enumerate(all_evals):
+    for i in range(len(all_evals)):
+        evals = all_evals[i]
         nbands = np.shape(evals)[0]
         efermi = np.mean([evals[nbands//2,0],evals[(nbands-1)//2,0]])
         fermi_ind = nbands//2
@@ -38,8 +39,7 @@ def plot_bands(*all_evals,colors,labels,title='',figname=None):
     # make an PDF figure of a plot
     fig.tight_layout()
     ax.set_ylim(-0.1,0.1)
-    if figname:
-        ax.savefig(figname)
+    fig.savefig(figname)
     
 if __name__=="__main__":
     atoms_HC = ase.io.read('POSCAR_HighCorr.txt',format='vasp')
@@ -69,4 +69,4 @@ if __name__=="__main__":
     title = "tblg band structure"
     colors=['black','red']
     labels=['high Corr','low Corr']
-    plot_bands(evals_HC,evals_LC,colors,labels,title=title)
+    plot_bands(colors,labels,(evals_HC,evals_LC),title=title,figname='buckled_monolayers.png')

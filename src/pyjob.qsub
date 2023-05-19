@@ -1,0 +1,23 @@
+#!/bin/bash
+# Begin LSF Directives
+#BSUB -P MAT221
+#BSUB -W 2:00
+#BSUB -nnodes 1
+##BSUB -alloc_flags gpumps
+#BSUB -J berry_phase
+#BSUB -o log.%J
+#BSUB -e error.%J
+#BSUB -q debug
+#BSUB -N dpalmer3@illinois.edu
+module load gcc
+module load netlib-lapack
+##module load essl
+##module load cuda
+
+module load python
+source activate /ccs/home/dpalmer3/.conda/envs/my_env
+#python extract_flat_bands.py
+jsrun -n1 -c42 -a1 -r1 -b rs python buckled_monolayerGraphene.py
+#python berry_phase.py
+#jsrun -n1 -c42 -a1 -r1 -b rs python ChiralSym_anti_commutator.py
+#python submit_jobs.py
