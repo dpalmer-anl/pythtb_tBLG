@@ -25,49 +25,50 @@ import subprocess
 @njit
 def hoppingInter_namkoshino(dR,kval):
 
+    A_C = 2.4683456
+    A_EDGE = A_C/np.sqrt(3)
+    D_AB = 3.35
+    VPI_0 = -2.7
+    # eV
+    VSIGMA_0 = 0.48
+    # Ang
+    R_RANGE = 0.184*A_C
+    
+    dr = dR[:2]
+    dd = dR[-1]
+    res = np.sum(dr**2, axis=1)+dd**2
+    res_sqrt = np.sqrt(res)
 
-    ez = [0,0,1]#;%unit vector along z axis
-    d = la.norm(dR)
-    d0 = 3.34 #interlayer spacing
-    a = 2.529
-    a0=a/np.sqrt(3)
-    r0_pi = 0.184*a   #decay length of transfer integral
+    vpi = VPI_0*np.exp(-(res_sqrt-A_EDGE)/R_RANGE)
+    vsigma = VSIGMA_0*np.exp(-(res_sqrt-D_AB)/R_RANGE)
 
-    Vpp_sigma0 = 0.48 #;%7.75792; 
-    Vpp_pi0 = -2.7 #;%-3; 
-   
- 
-    Vpp_sigma = Vpp_sigma0*np.exp(-(d-d0)/r0_pi) #; % here is the change of terms and interlayer distance is involved     
-    Vpp_pi = Vpp_pi0*np.exp(-(d-a0)/r0_pi) #; % here is the change of terms
-    Ezz = (dot(dR,ez)/d)**2*Vpp_sigma + (1-(dot(dR,ez)/d)**2)*Vpp_pi
+    hopping = vpi*(1-dd**2/res)+vsigma*(dd**2)/res
 
-    valmat = np.exp(1j*dot(dR,kval))*np.array([Ezz])
-
-
-    return valmat  #*eV_per_hart
+    return hopping
 
 @njit
 def hoppingIntra_namkoshino(dR,kval):
 
-    ez = [0,0,1]#;%unit vector along z axis
-    d = la.norm(dR)
-    d0 = 3.34 #interlayer spacing
-    a = 2.529
-    a0=a/np.sqrt(3)
-    r0_pi = 0.184*a   #decay length of transfer integral
+    A_C = 2.4683456
+    A_EDGE = A_C/np.sqrt(3)
+    D_AB = 3.35
+    VPI_0 = -2.7
+    # eV
+    VSIGMA_0 = 0.48
+    # Ang
+    R_RANGE = 0.184*A_C
+    
+    dr = dR[:2]
+    dd = dR[-1]
+    res = np.sum(dr**2, axis=1)+dd**2
+    res_sqrt = np.sqrt(res)
 
-    Vpp_sigma0 = 0.48 #;%7.75792; 
-    Vpp_pi0 = -2.7 #;%-3; 
-   
- 
-    Vpp_sigma = Vpp_sigma0*np.exp(-(d-d0)/r0_pi) #; % here is the change of terms and interlayer distance is involved     
-    Vpp_pi = Vpp_pi0*np.exp(-(d-a0)/r0_pi) #; % here is the change of terms
-    Ezz = (dot(dR,ez)/d)**2*Vpp_sigma + (1-(dot(dR,ez)/d)**2)*Vpp_pi
+    vpi = VPI_0*np.exp(-(res_sqrt-A_EDGE)/R_RANGE)
+    vsigma = VSIGMA_0*np.exp(-(res_sqrt-D_AB)/R_RANGE)
 
-    valmat = np.exp(1j*dot(dR,kval))*np.array([Ezz])
+    hopping = vpi*(1-dd**2/res)+vsigma*(dd**2)/res
 
-
-    return valmat  #*eV_per_hart
+    return hopping
 
 @njit
 def hoppingInter(dR,kval):
@@ -364,7 +365,7 @@ def wrap_disp(r1,r2, cell):
     
     return drij
 
-          
+    
 @njit
 def gen_ham_popov(xyz, cell, layer_tags,use_hoppingInter,use_hoppingIntra,
             use_overlapInter,use_overlapIntra, rcut_inplane=3.6, rcut_interlayer=5.29,kval=np.array([0,0,0])):

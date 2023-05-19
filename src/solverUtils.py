@@ -93,25 +93,45 @@ class solver(object):
             exit()
         return Hmatrix,H_row,H_col,Smatrix,S_row,S_col
     
-    
+    def get_PMF(self):
+        cell = self.atoms.get_cell()
+        periodicR1 = cell[0,:]
+        periodicR2 = cell[1,:]
+        periodicR3 = cell[2,:]
+        V = np.dot(periodicR1,np.cross(periodicR2,periodicR3))
+        b1 = 2*np.pi*np.cross(periodicR2,periodicR3)/V
+        b2 = 2*np.pi*np.cross(periodicR3,periodicR1)/V
+        b3 = 2*np.pi*np.cross(periodicR1,periodicR2)/V
+        kval =2/3*b1 + 1/3*b2 #evaluate at K point
+        
+        A_C = 2.4683456
+        e=vf=1
+        A_EDGE = A_C/np.sqrt(3)
+        A = np.zeros((self.norbs,3))
+        t0 = parameters.hoppingIntra([A_EDGE,0,0],kval)
+        t = parameters.hoppingIntra(disp[inplane_ind],kval)
+        dtk = t-t0
+        A = dtk/e/vf
+        return A
+        
     def get_bands_func(self,k_list):
         orbs_per_atom = 1
         def func_to_return(indices,dev_num=1):
             if type(indices)==int:
                 indices = [indices]
-            nkp = np.shape(k_list)[0]
+            nkp = np.shape(indices)[0]
             eval = np.zeros((self._model.num_eigvals,nkp))
             evec = np.zeros((self.norbs,self._model.num_eigvals,nkp),dtype=complex) 
-            for ind in indices:
-                kval = k_list[ind,:]
+            for i in range(nkp):
+                kval = k_list[indices[i],:]
                 Hmatrix,H_row,H_col,Smatrix,S_row,S_col = self.gen_ham(kval)
                 
                 ham =  csr_matrix((Hmatrix,(H_row,H_col)),shape=(self.norbs,self.norbs))
                 overlap =  csr_matrix((Smatrix,(S_row,S_col)),shape=(self.norbs,self.norbs))
                 # solve Hamiltonian
                 tmpeval, tmpevec = self.sol_ham(ham,overlap,dev_num)
-                eval[:,ind] = tmpeval
-                evec[:,:,ind] = tmpevec
+                eval[:,i] = tmpeval
+                evec[:,:,i] = tmpevec
 
                 if type(self._model.solve_dict['writeout']) == str:
                     fobj = os.path.join(self._model.solve_dict['writeout'],'kp_'+str(kval)+".hdf5")
