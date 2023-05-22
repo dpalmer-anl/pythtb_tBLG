@@ -26,7 +26,6 @@ def plot_bands(colors,labels,all_evals,title='',figname=None):
     ax.set_title(title)
     ax.set_xlabel("Path in k-space")
     ax.set_ylabel("Band energy")
-    
     for i in range(len(all_evals)):
         evals = all_evals[i]
         nbands = np.shape(evals)[0]
@@ -64,8 +63,8 @@ if __name__=="__main__":
     model_HC.solve_all(k_vec)
     
     evals_HC = model_HC.get_eigenvalues()
-    evals_LC = model_LC.get_eigenvalues()
-    
+    evals_LC = np.zeros_like(evals_HC) #model_LC.get_eigenvalues()
+
     title = "tblg band structure"
     colors=['black','red']
     labels=['high Corr','low Corr']
