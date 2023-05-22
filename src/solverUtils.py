@@ -189,7 +189,6 @@ class solver(object):
             if not self._model.solve_dict['cupy']:
 
                 number_of_cpu = joblib.cpu_count()
-                print(number_of_cpu)
                 output = Parallel(n_jobs=number_of_cpu)(delayed(band_func)(i) for i in range(nkp))
                 for i in range(nkp):
                     ret_eval[:,i] = output[i][0]
