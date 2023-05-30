@@ -93,25 +93,25 @@ class solver(object):
             exit()
         return Hmatrix,H_row,H_col,Smatrix,S_row,S_col
     
-    def get_PMF(self):
-        cell = self.atoms.get_cell()
-        periodicR1 = cell[0,:]
-        periodicR2 = cell[1,:]
-        periodicR3 = cell[2,:]
-        V = np.dot(periodicR1,np.cross(periodicR2,periodicR3))
-        b1 = 2*np.pi*np.cross(periodicR2,periodicR3)/V
-        b2 = 2*np.pi*np.cross(periodicR3,periodicR1)/V
-        b3 = 2*np.pi*np.cross(periodicR1,periodicR2)/V
-        kval =2/3*b1 + 1/3*b2 #evaluate at K point
+    def get_PMF(self,unrelaxed_atoms):
+        kval = [2/3,1/3,0]
+        e=1
+        vf = 1
+        xyz,cell,layer_tags = ase_arrays(unrelaxed_atoms)
+        if self._model.parameters=='popov':
+            use_hoppingInter= True
+            use_hoppingIntra = True
+            use_overlapInter = False
+            use_overlapIntra = False
+            Hmatrix,H_row,H_col,Smatrix,S_row,S_col = \
+                gen_ham_popov(xyz, cell, layer_tags,use_hoppingInter,use_hoppingIntra,
+                    use_overlapInter,use_overlapIntra,kval=kval)
         
-        A_C = 2.4683456
-        e=vf=1
-        A_EDGE = A_C/np.sqrt(3)
-        A = np.zeros((self.norbs,3))
-        t0 = parameters.hoppingIntra([A_EDGE,0,0],kval)
-        t = parameters.hoppingIntra(disp[inplane_ind],kval)
-        dtk = t-t0
-        A = dtk/e/vf
+        H0 = csr_matrix((Hmatrix,(H_row,H_col)),shape=(self.norbs,self.norbs))
+        Hmatrix,H_row,H_col,Smatrix,S_row,S_col = self.gen_ham(kval)
+        HS = csr_matrix((Hmatrix,(H_row,H_col)),shape=(self.norbs,self.norbs))
+        
+        Ax_iAy = HS - H0
         return A
         
     def get_bands_func(self,k_list):
