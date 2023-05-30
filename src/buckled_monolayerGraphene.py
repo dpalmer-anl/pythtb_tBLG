@@ -46,42 +46,77 @@ def plot_bands(colors,labels,all_evals,erange=1.0,title='',figname=None):
     fig.savefig(figname)
     
 if __name__=="__main__":
-    atoms_HC = ase.io.read('POSCAR_HighCorr.txt',format='vasp')
-    atoms_LC = ase.io.read('POSCAR_LowCorr.txt',format='vasp')
-
-    model_HC = pythtb_tblg.tblg_model(atoms_HC,parameters='popov')
-    model_LC = pythtb_tblg.tblg_model(atoms_LC,parameters='popov')
-    Gamma = [0,   0,   0]
-    K = [2/3,1/3,0]
-    Kprime = [1/3,2/3,0]
-    M = [1/2,0,0]
-    sym_pts=[K,Gamma,M,Kprime]
-    nk=40
-    (k_vec,k_dist,k_node) = model_HC.k_path(sym_pts,nk)
-    m = np.min(atoms_HC.positions[:,2])
-    plt.scatter(atoms_HC.positions[:,0],atoms_HC.positions[:,1],c=atoms_HC.positions[:,2]-m)
-    plt.title("HC")
-    plt.colorbar()
-    plt.show()
-    m = np.min(atoms_LC.positions[:,2])
-    plt.scatter(atoms_LC.positions[:,0],atoms_LC.positions[:,1],c=atoms_LC.positions[:,2]-m)
-    plt.title("LC")
-    plt.colorbar()
-    plt.show()
-    # solve_dict = {'cupy':False,
-    #               'sparse':False}
-    # model_HC.set_solver(solve_dict)
-    # model_LC.set_solver(solve_dict)
+    hc_lc=False
+    mlg_hbn=True
     
-    # model_HC.solve_all(k_vec)
-    # model_LC.solve_all(k_vec)
+    if hc_lc:
+        atoms_HC = ase.io.read('MLG_data/POSCAR_HighCorr.txt',format='vasp')
+        atoms_LC = ase.io.read('MLG_data/POSCAR_LowCorr.txt',format='vasp')
     
-    # evals_HC = model_HC.get_eigenvalues()
-    # evals_LC = model_LC.get_eigenvalues()
+        model_HC = pythtb_tblg.tblg_model(atoms_HC,parameters='popov')
+        model_LC = pythtb_tblg.tblg_model(atoms_LC,parameters='popov')
+        Gamma = [0,   0,   0]
+        K = [2/3,1/3,0]
+        Kprime = [1/3,2/3,0]
+        M = [1/2,0,0]
+        sym_pts=[K,Gamma,M,Kprime]
+        nk=40
+        (k_vec,k_dist,k_node) = model_HC.k_path(sym_pts,nk)
+        m = np.min(atoms_HC.positions[:,2])
+        plt.scatter(atoms_HC.positions[:,0],atoms_HC.positions[:,1],c=atoms_HC.positions[:,2]-m)
+        plt.title("HC")
+        plt.colorbar()
+        plt.show()
+        m = np.min(atoms_LC.positions[:,2])
+        plt.scatter(atoms_LC.positions[:,0],atoms_LC.positions[:,1],c=atoms_LC.positions[:,2]-m)
+        plt.title("LC")
+        plt.colorbar()
+        plt.show()
+        # solve_dict = {'cupy':False,
+        #               'sparse':False}
+        # model_HC.set_solver(solve_dict)
+        # model_LC.set_solver(solve_dict)
+        
+        # model_HC.solve_all(k_vec)
+        # model_LC.solve_all(k_vec)
+        
+        # evals_HC = model_HC.get_eigenvalues()
+        # evals_LC = model_LC.get_eigenvalues()
+    
+        # title = "buckled monolayer band structure"
+        # colors=['black','red']
+        # labels=['high Corr','low Corr']
+        # plot_bands(colors,labels,[evals_HC],title=title,erange=0.1,figname='buckled_monolayersHC.png')
+        # plot_bands(colors,labels,[evals_LC],title=title,erange=1.0,figname='buckled_monolayersLC.png')
 
-    # title = "buckled monolayer band structure"
-    # colors=['black','red']
-    # labels=['high Corr','low Corr']
-    # plot_bands(colors,labels,[evals_HC],title=title,erange=0.1,figname='buckled_monolayersHC.png')
-    # plot_bands(colors,labels,[evals_LC],title=title,erange=1.0,figname='buckled_monolayersLC.png')
-
+    if mlg_hbn:
+        atoms = ase.io.read('MLG_data/MLG_hBN.txt',format='vasp')
+    
+        model = pythtb_tblg.tblg_model(atoms,parameters='popov')
+        Gamma = [0,   0,   0]
+        K = [2/3,1/3,0]
+        Kprime = [1/3,2/3,0]
+        M = [1/2,0,0]
+        sym_pts=[K,Gamma,M,Kprime]
+        nk=40
+        (k_vec,k_dist,k_node) = model.k_path(sym_pts,nk)
+        # m = np.min(atoms.positions[:,2])
+        # plt.scatter(atoms.positions[:,0],atoms.positions[:,1],c=atoms.positions[:,2]-m)
+        # plt.title("HC")
+        # plt.colorbar()
+        # plt.show()
+        
+        solve_dict = {'cupy':False,
+                      'sparse':False,
+                      'writeout':'MLG_hBN_bands',
+                      'restart':True}
+        model.set_solver(solve_dict)
+        
+        model.solve_all(k_vec)
+        
+        evals = model.get_eigenvalues()
+    
+        title = "buckled monolayer band structure on 1% hBN substrate"
+        colors=['black','red']
+        labels=['MLG_hBN']
+        plot_bands(colors,labels,[evals],title=title,erange=0.1,figname='buckled_monolayershBN.png')
