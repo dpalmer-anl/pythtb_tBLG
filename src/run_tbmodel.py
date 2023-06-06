@@ -23,7 +23,7 @@ if __name__ == "__main__":
     parser.add_argument('-t','--theta',  type=str,default=False)
     parser.add_argument('-o','--output',  type=str,default=False)
     parser.add_argument('-od','--output_dir',type=str,default='band_calc'+str(hash(time.time())))
-    parser.add_argument('-i','--index',type=str,default="final")
+    parser.add_argument('-i','--index',type=str,default='0')
     parser.add_argument('-m','--model',type=str,default='popov')
     parser.add_argument('-s','--separation',type=str,default="3.35")
     parser.add_argument('-c','--calc_type',type=str,default="bands")
@@ -70,10 +70,10 @@ if __name__ == "__main__":
     
     #setup model 
     model = pythtb_tblg.tblg_model(atoms,parameters=args.model)
-    model.set_solver( {'cupy':True,
+    model.set_solver( {'cupy':False,
                         'sparse':False,
                         'writeout':args.output_dir,
-                        'restart':False,
+                        'restart':True,
                         'ngpu':6,
                         #if sparse
                         "fermi energy":-4.51,

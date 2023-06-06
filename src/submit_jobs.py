@@ -65,7 +65,7 @@ if __name__ =="__main__":
         theta_str = str(theta).replace(".","_")
         outdir = '../../tblg_db/band_data_interpUR_'+theta_str+'_'+tbmodel
         for i in range(num_ind):
-            executable = "jsrun -n1 -c42 -a1 -r1 -b rs python run_python_bands.py -d "\
+            executable = "jsrun -n1 -c42 -a1 -r1 -b rs python run_tbmodel.py -d "\
             +atoms_dir+" -o "+label+"_"+str(i)+' -i '+str(i)+' -m '+tbmodel
             +" -od "+outdir+'-c berry'
             submit_batch_file(executable,batch_options)
