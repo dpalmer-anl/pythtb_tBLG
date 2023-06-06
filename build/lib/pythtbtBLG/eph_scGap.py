@@ -4,7 +4,7 @@ Created on Fri Jun  2 11:11:20 2023
 
 @author: danpa
 """
-import pythtb_tblg
+import pythtbtBLG
 import numpy as np
 import scipy.optimize
 import flatgraphene as fg
@@ -85,7 +85,7 @@ if __name__=="__main__":
      
     #example usage
     #parameters = [popov,letb,nam koshino], only popov available now
-    model = pythtb_tblg.tblg_model(atoms,parameters='popov')
+    model = pythtbtBLG.tblg_model(atoms,parameters='popov')
     kgrid = model.k_uniform_mesh((15,15,1))
     model.set_solver( {'cupy':False,
                     'sparse':False,

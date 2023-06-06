@@ -22,7 +22,7 @@ import time
 import os
 import subprocess
 import copy
-from parameters import gen_ham_popov
+from pythtbtBLG.parameters import gen_ham_popov
 import shutil
 
 class solver(object):

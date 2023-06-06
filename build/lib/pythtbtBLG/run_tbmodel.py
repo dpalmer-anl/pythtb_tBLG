@@ -15,7 +15,7 @@ import glob
 import matplotlib.pyplot as plt
 import argparse
 import time
-import pythtb_tblg
+import pythtbtBLG
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -69,7 +69,7 @@ if __name__ == "__main__":
 
     
     #setup model 
-    model = pythtb_tblg.tblg_model(atoms,parameters=args.model)
+    model = pythtbtBLG.pythtb_tblg.tblg_model(atoms,parameters=args.model)
     model.set_solver( {'cupy':False,
                         'sparse':False,
                         'writeout':args.output_dir,
@@ -92,7 +92,7 @@ if __name__ == "__main__":
     elif args.calc_type=='berry_flux':
         Gamma = [0,0,0]
         mesh = (15,15,1)
-        my_array_1=pythtb_tblg.wf_array(model,mesh)
+        my_array_1=pythtbtBLG.pythtb_tblg.wf_array(model,mesh)
         my_array_1.solve_on_grid(Gamma)
         fermi_ind = model.num_eigvals//2
         berry_phases = np.zeros((model.num_eigvals,mesh[0]-1,mesh[1]-1))
@@ -135,7 +135,7 @@ if __name__ == "__main__":
                                         fermi_ind,fermi_ind+1,fermi_ind+2],0)))
         
     elif args.calc_type=='sublattice_polarization':
-        my_array_1=pythtb_tblg.wf_array(model,[15,15,1])
+        my_array_1=pythtbtBLG.pythtb_tblg.wf_array(model,[15,15,1])
         my_array_1.solve_on_grid([0,0,0])
         fermi_ind = model.num_eigvals//2
         phi_x = my_array_1.berry_phase([fermi_ind-1,

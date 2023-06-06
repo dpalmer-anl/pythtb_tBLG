@@ -5,7 +5,7 @@ Created on Tue Apr 18 13:52:14 2023
 @author: danpa
 """
 
-import pythtb_tblg
+from pythtbtBLG import pythtb_tblg
 import numpy as np
 import flatgraphene as fg
 import matplotlib.pyplot as plt

@@ -7,7 +7,7 @@ Created on Mon May  1 10:21:25 2023
 
 import numpy as np
 import matplotlib.pyplot as plt
-import parameters
+import pythtbtBLG.parameters
 from tqdm import tqdm
 from numba import njit
 import numba
