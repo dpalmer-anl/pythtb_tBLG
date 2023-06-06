@@ -29,12 +29,6 @@ DEPENDENCIES = ["numpy", "scipy", "pandas", "h5py", "ase", "pythtb",'numba']
 KEYWORDS = 'physics quantum mechanics solid state'
 
 
-def readme():
-    'Return the contents of the README.md file.'
-    with open('README.rst') as freadme:
-        return freadme.read()
-
-
 def setup_package():
 
     setup(name=MAIN_PACKAGE,
@@ -45,7 +39,7 @@ def setup_package():
           author_email=EMAIL,
           license=LICENSE,
           keywords=KEYWORDS,
-          long_description=readme(),
+          long_description=DESCRIPTION,
           classifiers=CLASSIFIERS,
           packages=['pythtbtBLG'],
           install_requires=DEPENDENCIES,

@@ -1,0 +1,21 @@
+Metadata-Version: 2.1
+Name: pythtbtBLG
+Version: 0.0.1
+Summary: Python tight binding models for twisted bilayer graphene
+Home-page: https://github.com/dpalmer-anl/pythtb_tBLG
+Author: Dan Palmer
+Author-email: dpalmer3@illinois.edu
+License: GPLv3
+Keywords: physics quantum mechanics solid state
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: GNU General Public License v3 (GPLv3)
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 3
+Classifier: Topic :: Scientific/Engineering :: Chemistry
+Classifier: Topic :: Scientific/Engineering :: Physics
+License-File: LICENSE
+
+Python tight binding models for twisted bilayer graphene
