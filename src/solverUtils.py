@@ -22,9 +22,8 @@ import time
 import os
 import subprocess
 import copy
-from parameters import gen_ham_popov,grad_ham_popov
+from parameters import gen_ham_popov
 import shutil
-
 
 class solver(object):
     def __init__(self,model):
@@ -149,21 +148,6 @@ class solver(object):
                     return (np.squeeze(eval),np.squeeze(evec))
         return func_to_return
     
-    def gradH(self,atom_index,kval):
-        xyz,cell,layer_tags = ase_arrays(self._model.atoms)
-        if self._model.parameters=='popov':
-            use_hoppingInter= True
-            use_hoppingIntra = True
-            use_overlapInter = False
-            use_overlapIntra = False
-            Hmatrix,H_row,H_col,Smatrix,S_row,S_col = \
-                grad_ham_popov(atom_index,xyz, cell, layer_tags,use_hoppingInter,use_hoppingIntra,
-                    use_overlapInter,use_overlapIntra,kval=kval)
-            return csr_matrix((Hmatrix,(H_row,H_col)),shape=(self.norbs,self.norbs))
-        else:
-            print("only tblg parameters implementation available currently is popov")
-            exit()
-        
     def solve_all(self,k_list):
         orbs_per_atom= 1 
         norb = self._model.atoms.get_global_number_of_atoms() * orbs_per_atom
@@ -181,9 +165,12 @@ class solver(object):
                 elif os.path.exists(os.path.join(self._model.solve_dict['writeout'],'kpoints.calc')):
                     kcalc = np.loadtxt(os.path.join(self._model.solve_dict['writeout'],'kpoints.calc'))
                     use = slices_inarray(k_list,kcalc,axis=0,invert=True)
+                    if np.shape(k_list)!=len(use):
+                        self._model.read_data=True
                     k_list = k_list[use,:]
                     
                     if np.shape(k_list)[0] == 0:
+                        print('reading in data')
                         self._model.read_data=True
                         return None
                         
