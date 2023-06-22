@@ -25,7 +25,7 @@ __version__='1.8.0'
 import numpy as np # numerics for matrices
 import sys # for exiting
 import copy # for deepcopying
-import pythtbtBLG.solverUtils
+from pythtbtBLG import solverUtils
 import os
 from scipy.optimize import linear_sum_assignment
 import h5py
