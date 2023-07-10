@@ -25,7 +25,7 @@ if __name__ =="__main__":
                          mass=[12.01,12.02],sep=3.444,h_vac=3)
      
     #example usage
-    #parameters = [popov,letb,nam koshino], only popov available now
+    #parameters = [popov,letb,Nam Koshino]
     model = pythtb_tblg.tblg_model(atoms,parameters='popov')
     Gamma = [0,   0,   0]
     K = [2/3,1/3,0]
@@ -134,25 +134,25 @@ if __name__ =="__main__":
         # make an PDF figure of a plot
         fig.tight_layout()
         
-        # model.set_solver( {'cupy':True,
-        #                 'sparse':False,
-        #                 #'writeout':'test_BandCalc',
-        #                 'restart':False,
-        #                 #if sparse
-        #                 "fermi energy":-4.51,
-        #                 "num states":30})
+        model.set_solver( {'cupy':True,
+                        'sparse':False,
+                        #'writeout':'test_BandCalc',
+                        'restart':False,
+                        #if sparse
+                        "fermi energy":-4.51,
+                        "num states":30})
     
-        # model.solve_all(k_vec)
+        model.solve_all(k_vec)
         
-        # model.set_solver( {'cupy':True,
-        #                 'sparse':True,
-        #                 #'writeout':'test_BandCalc',
-        #                 'restart':False,
-        #                 #if sparse
-        #                 "fermi energy":-4.51,
-        #                 "num states":30})
+        model.set_solver( {'cupy':True,
+                        'sparse':True,
+                        #'writeout':'test_BandCalc',
+                        'restart':False,
+                        #if sparse
+                        "fermi energy":-4.51,
+                        "num states":30})
     
-        # model.solve_all(k_vec)
+        model.solve_all(k_vec)
         
     if berry_phase:
         model.set_solver( {'cupy':False,

@@ -23,32 +23,8 @@ import os
 import subprocess
 
 @njit
-def hoppingInter_namkoshino(dR,kval):
-
-    A_C = 2.4683456
-    A_EDGE = A_C/np.sqrt(3)
-    D_AB = 3.35
-    VPI_0 = -2.7
-    # eV
-    VSIGMA_0 = 0.48
-    # Ang
-    R_RANGE = 0.184*A_C
-    
-    dr = dR[:2]
-    dd = dR[-1]
-    res = np.sum(dr**2, axis=1)+dd**2
-    res_sqrt = np.sqrt(res)
-
-    vpi = VPI_0*np.exp(-(res_sqrt-A_EDGE)/R_RANGE)
-    vsigma = VSIGMA_0*np.exp(-(res_sqrt-D_AB)/R_RANGE)
-
-    hopping = vpi*(1-dd**2/res)+vsigma*(dd**2)/res
-
-    return hopping
-
-@njit
-def hoppingIntra_namkoshino(dR,kval):
-
+def hopping_namkoshino(dR,kval):
+    """ Nam Koshino interlayer hopping"""
     A_C = 2.4683456
     A_EDGE = A_C/np.sqrt(3)
     D_AB = 3.35
@@ -473,8 +449,7 @@ def gen_ham_popov(xyz, cell, layer_tags,use_hoppingInter,use_hoppingIntra,
     return Hmatrix,H_row,H_col,Smatrix,S_row,S_col
 
 @njit
-def grad_ham_popov(i,xyz, cell, layer_tags,use_hoppingInter,use_hoppingIntra,
-            use_overlapInter,use_overlapIntra, rcut_inplane=3.6, rcut_interlayer=5.29,kval=np.array([0,0,0])):
+def gen_ham_nam_koshino(xyz, cell, layer_tags, rcut_inplane=3.6, rcut_interlayer=5.29,kval=np.array([0,0,0])):
     """ get pz only tight binding energy spectrum from a given ase.atoms object. Note**
     to use interlayer hoppings, atoms_obj.symbols must contain differing symbols
     for atoms in different layers. At least one hopping function must be provided
@@ -502,49 +477,36 @@ def grad_ham_popov(i,xyz, cell, layer_tags,use_hoppingInter,use_hoppingIntra,
     b3 = 2*np.pi*np.cross(periodicR1,periodicR2)/V
     kval = kval[0]*b1 + kval[1]*b2 + kval[2]*b3
     natoms = np.shape(xyz)[0]
-    Es_C =  -13.7388 # eV 
     Ep_C = -5.2887  # eV
-    EnergiesOfCarbon = [Es_C, Ep_C, Ep_C, Ep_C]
-    if use_hoppingIntra:
-        test_val = hoppingIntra(np.array([3.,3.,3.]),np.array([0,0,0]))
-    elif use_hoppingInter:
-        test_val = hoppingInter(np.array([3.,3.,3.]),np.array([0,0,0]))
-    else:
-        print("add hopping function")
-    orbs_per_atom= test_val.shape[0]
+    orbs_per_atom= 1
     #add in code to take care of multiple orbitals at same atom
     Hmatrix = np.array([np.complex128(x) for x in range(0)],dtype=complex128)
     H_row = np.array([np.int64(x) for x in range(0)],dtype=int64)
     H_col = np.array([np.int64(x) for x in range(0)],dtype=int64)
-
-    ri = xyz[i,:]
-    curr_tag=layer_tags[i]
-    for j in range (i, natoms, 1): 
-        rj = xyz[j,:]
-        disp = wrap_disp(ri,rj,cell)
-        dist = np.linalg.norm(disp)
-        #INPLANE INTERACTION,USING R_CUT TO CHOOSE NEIGHBOR
-        if curr_tag == layer_tags[j] and use_hoppingIntra: #or insert tolerance
+    Smatrix = np.array([np.complex128(x) for x in range(0)],dtype=complex128)
+    S_row = np.array([np.int64(x) for x in range(0)],dtype=int64)
+    S_col = np.array([np.int64(x) for x in range(0)],dtype=int64)
+    for i in range (0,natoms, 1): #%going to each atom one by one
+        ri = xyz[i,:]
+        curr_tag=layer_tags[i]
+        for j in range (i, natoms, 1): 
+            rj = xyz[j,:]
+            if i == j: #insert self energies on diagonal
+                Hmatrix = np.append(Hmatrix,Ep_C)
+                
+                H_row = np.append(H_row,i)
+                H_col = np.append(H_col,j)
+                
+            disp = wrap_disp(ri,rj,cell)
+            dist = np.linalg.norm(disp)
+            #INPLANE INTERACTION,USING R_CUT TO CHOOSE NEIGHBOR
             if (dist)<rcut_inplane:
-                hopMat = GradhoppingIntra(disp,kval)
+                hopMat = hoppingIntra(disp,kval)
                 Hmatrix = np.append(Hmatrix,hopMat)
                 H_row = np.append(H_row,i)
                 H_col = np.append(H_col,j)
                 Hmatrix = np.append(Hmatrix,hopMat.conj().T)
                 H_row= np.append(H_row,j)
                 H_col = np.append(H_col,i)
-        #INTERLAYER INTERACTION, NOT APPLYING R_CUT, RIGIDLY CHOOSING NEIGHBOR       
-        elif use_hoppingInter:
-            
-            if dist < rcut_interlayer:
-                 
-                hopMat = GradhoppingInter(disp,kval)
-                Hmatrix = np.append(Hmatrix,hopMat)
-                H_row = np.append(H_row,i)
-                H_col = np.append(H_col,j)
-                Hmatrix = np.append(Hmatrix,hopMat.conj().T)
-                H_row= np.append(H_row,j)
-                H_col = np.append(H_col,i)
-
 
     return Hmatrix,H_row,H_col,Smatrix,S_row,S_col
