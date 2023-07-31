@@ -55,7 +55,7 @@ def submit_batch_file_perlmutter(executable,batch_options,
         for key in batch_copy:
             if key == "modules":
                 continue
-            f.write(prefix+key+str(batch_copy[key])+"\n")
+            f.write(prefix+key+' '+str(batch_copy[key])+"\n")
 
         for m in modules:
             f.write("module load "+m+"\n")
