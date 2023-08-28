@@ -22,10 +22,14 @@ import time
 import os
 import subprocess
 import copy
-from pythtbtBLG.parameters import gen_ham_popov
+from pythtbtBLG.parameters import gen_ham_popov #,gen_ham_nam_koshino
 import shutil
+from bilayer_letb.api import tb_model
 
 class solver(object):
+    """solver object for pythtbTBLG model object. Allows user to select whether
+    to use GPUS, parallelization or sparsity to calculate hamiltonian and 
+    diagonalize"""
     def __init__(self,model):
         self._model=model
     
@@ -79,6 +83,7 @@ class solver(object):
             return eval,eigvec
     
     def gen_ham(self,kval):
+        """generates hamiltonian based in selected TB model """
         xyz,cell,layer_tags = ase_arrays(self._model.atoms)
         if self._model.parameters=='popov':
             use_hoppingInter= True
@@ -88,31 +93,19 @@ class solver(object):
             Hmatrix,H_row,H_col,Smatrix,S_row,S_col = \
                 gen_ham_popov(xyz, cell, layer_tags,use_hoppingInter,use_hoppingIntra,
                     use_overlapInter,use_overlapIntra,kval=kval)
+        elif self._model.parameters=='Nam Koshino':
+
+            Hmatrix,H_row,H_col,Smatrix,S_row,S_col = \
+                gen_ham_nam_koshino(xyz, cell, layer_tags,kval=kval)
+                
+        elif self._model.parameters=='letb':
+            
+            letb = tb_model(self._model.atoms)
+            Hmatrix = letb._gen_ham(k_input=kval)
         else:
-            print("only tblg parameters implementation available currently is popov")
+            print("parameters must be popov, Nam Koshino, or letb")
             exit()
         return Hmatrix,H_row,H_col,Smatrix,S_row,S_col
-    
-    def get_PMF(self,unrelaxed_atoms):
-        kval = [2/3,1/3,0]
-        e=1
-        vf = 1
-        xyz,cell,layer_tags = ase_arrays(unrelaxed_atoms)
-        if self._model.parameters=='popov':
-            use_hoppingInter= True
-            use_hoppingIntra = True
-            use_overlapInter = False
-            use_overlapIntra = False
-            Hmatrix,H_row,H_col,Smatrix,S_row,S_col = \
-                gen_ham_popov(xyz, cell, layer_tags,use_hoppingInter,use_hoppingIntra,
-                    use_overlapInter,use_overlapIntra,kval=kval)
-        
-        H0 = csr_matrix((Hmatrix,(H_row,H_col)),shape=(self.norbs,self.norbs))
-        Hmatrix,H_row,H_col,Smatrix,S_row,S_col = self.gen_ham(kval)
-        HS = csr_matrix((Hmatrix,(H_row,H_col)),shape=(self.norbs,self.norbs))
-        
-        Ax_iAy = HS - H0
-        return A
         
     def get_bands_func(self,k_list):
         orbs_per_atom = 1
@@ -149,14 +142,6 @@ class solver(object):
         return func_to_return
     
     def solve_all(self,k_list):
-        orbs_per_atom= 1 
-        norb = self._model.atoms.get_global_number_of_atoms() * orbs_per_atom
-        self.norbs = norb
-        if not self._model.solve_dict['sparse']:
-            num_eigvals = norb
-        else:
-            num_eigvals = self._model.solve_dict["num states"]
-        self._model.num_eigvals = num_eigvals
         
         if self._model.solve_dict['writeout']!=None:
             if self._model.solve_dict['restart']:
@@ -175,6 +160,15 @@ class solver(object):
                         return None
                         
             else:
+                orbs_per_atom= 1 
+                norb = self._model.atoms.get_global_number_of_atoms() * orbs_per_atom
+                self.norbs = norb
+                if not self._model.solve_dict['sparse']:
+                    num_eigvals = norb
+                else:
+                    num_eigvals = self._model.solve_dict["num states"]
+                self._model.num_eigvals = num_eigvals
+
                 if os.path.exists(self._model.solve_dict['writeout']):
                     shutil.rmtree(self._model.solve_dict['writeout'])
                 os.mkdir(self._model.solve_dict['writeout'])

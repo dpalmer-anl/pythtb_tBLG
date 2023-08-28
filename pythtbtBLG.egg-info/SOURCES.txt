@@ -3,7 +3,6 @@ README.md
 setup.py
 pythtbtBLG/__init__.py
 pythtbtBLG/construct_KP.py
-pythtbtBLG/eph_scGap.py
 pythtbtBLG/example_usage.py
 pythtbtBLG/kp_expansion.py
 pythtbtBLG/parameters.py
@@ -12,7 +11,6 @@ pythtbtBLG/pythtb_tblg.py
 pythtbtBLG/run_tbmodel.py
 pythtbtBLG/shift.py
 pythtbtBLG/solverUtils.py
-pythtbtBLG/sublat_polarization.py
 pythtbtBLG/submit_jobs.py
 pythtbtBLG/twist.py
 pythtbtBLG.egg-info/PKG-INFO

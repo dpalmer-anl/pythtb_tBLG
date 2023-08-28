@@ -22,7 +22,7 @@ import time
 import os
 import subprocess
 import copy
-from pythtbtBLG.parameters import gen_ham_popov,gen_ham_nam_koshino
+from pythtbtBLG.parameters import gen_ham_popov #,gen_ham_nam_koshino
 import shutil
 from bilayer_letb.api import tb_model
 
@@ -142,14 +142,6 @@ class solver(object):
         return func_to_return
     
     def solve_all(self,k_list):
-        orbs_per_atom= 1 
-        norb = self._model.atoms.get_global_number_of_atoms() * orbs_per_atom
-        self.norbs = norb
-        if not self._model.solve_dict['sparse']:
-            num_eigvals = norb
-        else:
-            num_eigvals = self._model.solve_dict["num states"]
-        self._model.num_eigvals = num_eigvals
         
         if self._model.solve_dict['writeout']!=None:
             if self._model.solve_dict['restart']:
@@ -168,6 +160,15 @@ class solver(object):
                         return None
                         
             else:
+                orbs_per_atom= 1 
+                norb = self._model.atoms.get_global_number_of_atoms() * orbs_per_atom
+                self.norbs = norb
+                if not self._model.solve_dict['sparse']:
+                    num_eigvals = norb
+                else:
+                    num_eigvals = self._model.solve_dict["num states"]
+                self._model.num_eigvals = num_eigvals
+
                 if os.path.exists(self._model.solve_dict['writeout']):
                     shutil.rmtree(self._model.solve_dict['writeout'])
                 os.mkdir(self._model.solve_dict['writeout'])

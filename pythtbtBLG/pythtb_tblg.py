@@ -98,16 +98,17 @@ class tblg_model(object):
 
     """
 
-    def __init__(self,atoms,parameters='popov',nspin=1):
+    def __init__(self,atoms=None,write_out_dir=None,parameters='popov',nspin=1):
         
         self._dim_k = 3
         self._dim_r = 3
         self._per=list(range(self._dim_k))
         self.atoms = atoms
         self.parameters=parameters
-        self._orb = self.atoms.positions
-        self._lat = self.atoms.get_cell()
-        self._norb = atoms.get_global_number_of_atoms()
+        if self.atoms:
+            self._orb = self.atoms.positions
+            self._lat = self.atoms.get_cell()
+            self._norb = atoms.get_global_number_of_atoms()
         # remember number of spin components
         if nspin not in [1,2]:
             raise Exception("\n\nWrong value of nspin, must be 1 or 2!")
@@ -115,12 +116,13 @@ class tblg_model(object):
         self.eigenvalues = None
         self.eigenvectors = None
         self.read_data = False
+        self.write_out_dir = write_out_dir
         # by default, assume model did not come from w90 object and that
         # position operator is diagonal
         self._assume_position_operator_diagonal=True
         self.solve_dict = {'cupy':False,
                     'sparse':False,
-                    'writeout':None,
+                    'writeout':self.write_out_dir,
                     'restart':False,
                     #if sparse:
                     "fermi energy":-4.51,

@@ -39,9 +39,33 @@ def submit_batch_file_summit(executable,batch_options,
             #f.write("\nsource activate /ccs/proj/mat221/dpalmer3/conda_envs/summit/cupy-summit\n")
             f.write(executable)
         subprocess.call("bsub -L $SHELL "+sbatch_file,shell=True)
+
+def submit_batch_file_uiuc_cc(executable,batch_options,
+                                 conda_env='my.anaconda'):
+
+    sbatch_file="job"+str(hash(datetime.now()) )+".sbatch"
+    batch_copy = batch_options.copy()
+
+    prefix="#SBATCH "
+    with open(sbatch_file,"w+") as f:
+        f.write("#!/bin/bash\n")
+
+        modules=batch_copy["modules"]
+
+        for key in batch_copy:
+            if key == "modules":
+                continue
+            f.write(prefix+key+' '+str(batch_copy[key])+"\n")
+
+        for m in modules:
+            f.write("module load "+m+"\n")
+
+        f.write("\nsource activate "+conda_env+"\n")
+        f.write(executable)
+    subprocess.call("sbatch "+sbatch_file,shell=True)
         
 def submit_batch_file_perlmutter(executable,batch_options,
-                                 conda_env='$PSCRATCH//mypythonev'):
+                                 conda_env='$PSCRATCH/mypythonev'):
 
     sbatch_file="job"+str(hash(datetime.now()) )+".sbatch"
     batch_copy = batch_options.copy()
